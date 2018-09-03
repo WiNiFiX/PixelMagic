@@ -2423,7 +2423,7 @@ namespace PixelMagic.Helpers
                 {
                     using (var gdest = Graphics.FromImage(screenPixel))
                     {
-                        using (var gsrc = Graphics.FromHwnd(Process.MainWindowHandle))
+                        using (var gsrc = Graphics.FromHwnd(IntPtr.Zero)) // Change to read from Desktop instead of wow as blizzard now screenlock reading color from process and return black
                         {
                             var hSrcDC = gsrc.GetHdc();
                             var hDC = gdest.GetHdc();
