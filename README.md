@@ -1,7 +1,10 @@
 # Pixel Magic - where color unlocks the World of Warcraft.
 
 Developer and copyright owner: WiNiFiX<br>
-Project stated on: December 2015<br>
+Project started on: December 2015<br>
+
+**Currently detected** - do not use without compiling from source and changing alot of the project.<br>
+For the paid replacement version in C# and Java see [here](https://winifix.github.io/pixel-faq.html)<br> 
 
 **Latest Build:**<br>
 For those of you whom don't know how to compile the source and run it you can download this version here then unzip the<br> 
