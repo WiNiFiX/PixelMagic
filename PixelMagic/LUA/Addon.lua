@@ -1130,8 +1130,6 @@ local function updateLastSpell(self, event, ...)
         local strRed = ""
 		local strBlue = ""
 		local strGreen = ""
-        print("Spell: ",spellID)
-		print("Event: ",event)
         for i = 1, 2 do        
 		    if(i==1 and spellID ~= nil) then
                 strRedTemp = strsub( spellID, 1, 1)
@@ -1170,11 +1168,6 @@ local function updateLastSpell(self, event, ...)
             local red = tonumber(strRed)
             local green = tonumber(strGreen)
             local blue = tonumber(strBlue)
-
-            print("red: ", red)
-			print("green: ", green)
-			print("blue: ", blue)
-			print("alpha: ", alphaColor)
             lastSpellFrame[i].t:SetColorTexture(red, green, blue, alphaColor)
         end
     end
