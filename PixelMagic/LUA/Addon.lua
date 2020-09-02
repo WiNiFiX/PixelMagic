@@ -1,4 +1,6 @@
 -- Configurable Variables
+
+
 local size = 1;	-- this is the size of the "pixels" at the top of the screen that will show stuff, currently 5x5 because its easier to see and debug with
 
 ---Tables
@@ -233,7 +235,6 @@ local function activeEnemies()
             UnitIsDead(k) == false and UnitAffectingCombat(k) then
                 npcDetect.enemiesPlate = npcDetect.enemiesPlate + 1
             --print("what is k:",k,"Is ",v," In range ",LibStub("SpellRange-1.0").IsSpellInRange("Mongoose Bite", v)," Is unit dead :",UnitIsDead(v))
-        
             end
         end
     end
@@ -243,7 +244,6 @@ end
 local function NameplateFrameUPDATE()
 	activeEnemies()
 	TurnOnPlates()
-	--TurnOnPlates()
 	--print("Npc counT",npcDetect.enemiesPlate)
 	npcDetect.npcCountFrame.t:SetColorTexture(1, npcDetect.enemiesPlate, npcDetect.PlatesOn, alphaColor)
 end
@@ -281,12 +281,15 @@ end
 local function updateCombat(self, event, ...)	
     if event == "PLAYER_REGEN_ENABLED" then  
 		--print("Leaving combat")
-        unitCombatFrame.t:SetColorTexture(1, 1, 1, alphaColor)  
+        unitCombatFrame.t:SetColorTexture(1, 1, 1, alphaColor) 
+		return
     end
 	if event == "PLAYER_REGEN_DISABLED" then
 		--print("Entering combat")
         unitCombatFrame.t:SetColorTexture(1, 0, 0, alphaColor)
+		return
     end
+	print("Unhandled Combat Event: " .. event)
 end
 
 local function roundNumber(num)
@@ -388,33 +391,30 @@ local function updateTargetBuffs()
             end    
             return
         end
-
-        local name, _, _, count, _, _, expirationTime, _, _, _, spellId = UnitBuff("target", auraName)
-
-		if (name == auraName) then -- We have Aura up and Aura ID is matching our list
-                local remainingTime = 0
+		local found = false
+		for i=1,40 do
+			local name, _, count, _, _, expirationTime, _, _, _, spellId = UnitBuff("target", i)
+			if (name == auraName) then -- We have Aura up and Aura ID is matching our list
+				found = true
+		        local remainingTime = 0
                 if(expirationTime~=0) then
                     remainingTime = expirationTime -GetTime() - select(4,GetNetStats())/1000
                 end
                 if (buffLastState[auraId] ~= "BuffOn" .. count .. remainingTime) then
-                buffLastState[auraId] = "BuffOn" .. count 
-                remainingTime = string.format("%00.2f", tostring(remainingTime))
-			    local green = tonumber(strsub(tostring(remainingTime), 1, 2)) / 100
-                local blue = tonumber(strsub(tostring(remainingTime), -2, -1)) / 100
-
-               
-              --  if spellId == 194084 then
-                --    print("Remaining CD: ",remainingTime," Count : ",red, " Seconds :",green," tenths : ",blue)
-                --end
-		     TargetBuffs[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
-             TargetBuffs[auraId].t:SetAllPoints(false)
-		end
-        else
-            if (buffLastState[auraId] ~= "BuffOff") then
+			        buffLastState[auraId] = "BuffOn" .. count 
+				    remainingTime = string.format("%00.2f", tostring(remainingTime))
+					local green = tonumber(strsub(tostring(remainingTime), 1, 2)) / 100
+					local blue = tonumber(strsub(tostring(remainingTime), -2, -1)) / 100
+				     TargetBuffs[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
+				     TargetBuffs[auraId].t:SetAllPoints(false)
+				end
+				break
+			end
+		end			
+        if (found and buffLastState[auraId] ~= "BuffOff") then
                 TargetBuffs[auraId].t:SetColorTexture(1, 1, 1, alphaColor)
                 TargetBuffs[auraId].t:SetAllPoints(false)
                 buffLastState[auraId] = "BuffOff"              
-            end
         end
     end
 end
@@ -423,27 +423,27 @@ local function updateUnitPower()
     local power = 0
     
     if classIndex == 2 then                                 -- Paladin
-        power = UnitPower("player", SPELL_POWER_HOLY_POWER)
+        power = UnitPower("player", Enum.PowerType.HolyPower)
     end
 
     if classIndex == 9 then                                 -- Warlock
-        power = UnitPower("player", SPELL_POWER_SOUL_SHARDS)
+        power = UnitPower("player", Enum.PowerType.SoulShards)
     end
 
     if classIndex == 8 then                                 -- Mage
-        power = UnitPower("player", SPELL_POWER_ARCANE_CHARGES)
+        power = UnitPower("player", Enum.PowerType.ArcaneCharges)
     end
 
     if classIndex == 4 then                                 -- Rogue 
-        power = UnitPower("player", SPELL_POWER_COMBO_POINTS)
+        power = UnitPower("player", Enum.PowerType.ComboPoints)
     end
 
     if classIndex == 11 then                                -- Druid Feral
-        power = UnitPower("player", SPELL_POWER_COMBO_POINTS)
+        power = UnitPower("player", Enum.PowerType.ComboPoints)
     end
 
     if classIndex == 6 then                                 -- DeathKnight                        
-        local maxRunes = UnitPower("player", SPELL_POWER_RUNES)
+        local maxRunes = UnitPower("player", Enum.PowerType.Runes)
         local selectedRunes = 6
         local i = 1
         for i = 1, maxRunes do
@@ -456,7 +456,7 @@ local function updateUnitPower()
     end
 
     if classIndex == 10 then                                -- Monk
-        power = UnitPower("player", SPELL_POWER_CHI)
+        power = UnitPower("player", Enum.PowerType.Chi)
     end
 
     if power ~= lastUnitPower then        
@@ -465,6 +465,7 @@ local function updateUnitPower()
         unitPowerFrame.t:SetAllPoints(false)
         lastUnitPower = power
     end
+	--print("ClassIndex: " .. classIndex)
 end
 
 local lastPet = nil
@@ -568,7 +569,6 @@ end
 local function updateMyBuffs(self, event)
 	for _, auraId in pairs(buffs) do
 		local auraName = GetSpellInfo(auraId)
-		
 		if auraName == nil then
 	        if (lastBuffState[auraId] ~= "BuffOff") then
                 buffFrames[auraId].t:SetColorTexture(1, 1, 1, alphaColor)
@@ -577,34 +577,30 @@ local function updateMyBuffs(self, event)
             end
 			return
 		end
-
-        local name, _, _, count, _, duration, expirationTime, _, _, _, spellId = UnitBuff("player", auraName)
-
-		if (name == auraName) then -- We have Aura up and Aura ID is matching our list
+		local found = false
+		for i=1,40 do
+			local name, _, count, _, duration, expirationTime, _, _, _, spellId = UnitBuff("player", i)
+			if (name == auraName) then -- We have Aura up and Aura ID is matching our list
+				found = true
                 local remainingTime = 0
                 if(expirationTime~=0) then
                     remainingTime = expirationTime -GetTime() - select(4,GetNetStats())/1000
                 end
                 if (lastBuffState[auraId] ~= "BuffOn" .. count ) then
-                lastBuffState[auraId] = "BuffOn" .. count 
-                remainingTime = string.format("%00.2f", tostring(remainingTime))
-                local green = tonumber(strsub(tostring(remainingTime), 1, 2)) / 100
-                local blue = tonumber(strsub(tostring(remainingTime), -2, -1)) / 100
-
-               
-				--  if spellId == 194386 then
-                --    print("Remaining CD: ",remainingTime," Count : ",red, " Seconds :",green," tenths : ",blue)
-                --end
-		     buffFrames[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
-             buffFrames[auraId].t:SetAllPoints(false)
-
-        end
-        else
-            if (lastBuffState[auraId] ~= "BuffOff") then
+	                lastBuffState[auraId] = "BuffOn" .. count 
+		            remainingTime = string.format("%00.2f", tostring(remainingTime))
+			        local green = tonumber(strsub(tostring(remainingTime), 1, 2)) / 100
+					local blue = tonumber(strsub(tostring(remainingTime), -2, -1)) / 100
+					buffFrames[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
+					buffFrames[auraId].t:SetAllPoints(false)
+					break
+				end
+			end
+		end
+        if (found and lastBuffState[auraId] ~= "BuffOff") then
              buffFrames[auraId].t:SetColorTexture(1, 1, 1, alphaColor)
              buffFrames[auraId].t:SetAllPoints(false)
              lastBuffState[auraId] = "BuffOff"
-            end
         end
     end
 end
@@ -623,9 +619,41 @@ local function updateTargetDebuffs(self, event)
     
             return
         end
- 		--print("Getting debuff for Id = " .. auraName)
-		local name, _, _, count, _, duration, expirationTime, _, _, _, spellId, _, _, _, _, _ = UnitDebuff("target", auraName, nil, "PLAYER|HARMFUL")
-	    if name == "Unstable Affliction" and (name == auraName) then
+
+		--Can't query UnitDebuff by name of aura anymore.  have to enumerate
+		local found = false
+		for i=1,40 do
+			local name, icon, count, _, duration, expirationTime, _, _, _, spellId, _, _, _, _, _ = UnitDebuff("target",i , "PLAYER|HARMFUL")
+			if (name == auraName) then -- We have Aura up and Aura ID is matching our list
+				found = true
+                local remainingTime = 0
+                if(expirationTime ~=0) then
+                     remainingTime = expirationTime - GetTime()
+                end
+                remainingTime = string.format("%00.2f", tostring(remainingTime))
+
+				if (lastDebuffState[auraId] ~= "DebuffOn" .. count..remainingTime) then
+	                local green = tonumber(strsub(tostring(remainingTime), 1, 2)) / 100
+		            local blue = tonumber(strsub(tostring(remainingTime), -2, -1)) / 100
+						
+					targetDebuffFrames[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
+					targetDebuffFrames[auraId].t:SetAllPoints(false)
+					--print("[" .. buff.. "] " .. auraName.. " " .. count.. " Green: " .. green.. " Blue: " .. blue)
+					lastDebuffState[auraId] = "DebuffOn" .. count..remainingTime
+				end
+				break
+			else
+	            
+	        end
+		end
+		if (found and lastDebuffState[auraId] ~= "DebuffOff") then
+		            targetDebuffFrames[auraId].t:SetColorTexture(1, 1, 1, alphaColor)
+			        targetDebuffFrames[auraId].t:SetAllPoints(false)
+				    lastDebuffState[auraId] = "DebuffOff"
+	                --print("[" .. buff.. "] " .. auraName.. " Off")
+		 end
+
+	    --[[if name == "Unstable Affliction" and (name == auraName) then
               count = 0
                 index = 1
                 
@@ -643,33 +671,7 @@ local function updateTargetDebuffs(self, event)
                             UA = false
                     end
                 end
-                
-            end
-		if (name == auraName) then -- We have Aura up and Aura ID is matching our list
-                local remainingTime = 0
-                if(expirationTime ~=0) then
-                     remainingTime = expirationTime - GetTime()
-                end
-                remainingTime = string.format("%00.2f", tostring(remainingTime))
-
-			if (lastDebuffState[auraId] ~= "DebuffOn" .. count..remainingTime) then
-                local green = tonumber(strsub(tostring(remainingTime), 1, 2)) / 100
-                local blue = tonumber(strsub(tostring(remainingTime), -2, -1)) / 100
-
-                targetDebuffFrames[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
-                targetDebuffFrames[auraId].t:SetAllPoints(false)
-                --print("[" .. buff.. "] " .. auraName.. " " .. count.. " Green: " .. green.. " Blue: " .. blue)
-                lastDebuffState[auraId] = "DebuffOn" .. count..remainingTime
-            end
-        else
-            if (lastDebuffState[auraId] ~= "DebuffOff") then
-                targetDebuffFrames[auraId].t:SetColorTexture(1, 1, 1, alphaColor)
-                targetDebuffFrames[auraId].t:SetAllPoints(false)
-                lastDebuffState[auraId] = "DebuffOff"
-                --print("[" .. buff.. "] " .. auraName.. " Off")
-            end
-        end
-
+            end ]]
     end
 end
 
@@ -1045,6 +1047,9 @@ end
 local lastTargetCastID = 0
 
 local function InteruptSpellTime(startTime, endTime)
+	if (type(endTime)=="boolean") then
+		endTime = startTime + 10000
+	end
     return  math.abs(endTime - GetTime() * 1000 ) / math.abs (endTime - startTime)
     --print("Cast time: ", castTime, "Cast PCT: ", castPCT,"remaining :", remainingTime)
 end
@@ -1119,15 +1124,14 @@ end
 
 local function updateLastSpell(self, event, ...)
         
-    local _, _, _, _, spellID = ...
+    local _, _, spellID = ...
     
     if (event == "UNIT_SPELLCAST_SUCCEEDED") then
         local strRed = ""
 		local strBlue = ""
 		local strGreen = ""
-        
         for i = 1, 2 do        
-		    if(i==1) then
+		    if(i==1 and spellID ~= nil) then
                 strRedTemp = strsub( spellID, 1, 1)
                 if (strRedTemp~=nil) then
                     strRed = "0.".. strRedTemp
@@ -1144,7 +1148,7 @@ local function updateLastSpell(self, event, ...)
                 else strBlue = 1 end
                             
             end
-            if(i==2) then
+            if(i==2 and spellID ~= nil) then
                 strRedTemp = strsub( spellID, 4, 4)
                 if (strRedTemp~=nil) then
                     strRed = "0.".. strRedTemp
@@ -1164,8 +1168,6 @@ local function updateLastSpell(self, event, ...)
             local red = tonumber(strRed)
             local green = tonumber(strGreen)
             local blue = tonumber(strBlue)
-
-            --print (strRed)
             lastSpellFrame[i].t:SetColorTexture(red, green, blue, alphaColor)
         end
     end
@@ -1416,34 +1418,33 @@ local function updateMyPetBuffs(self, event)
 			end
 			return
 		end
-		
-		local name, _, _, count, _, _, expirationTime, _, _, _, _= UnitBuff("pet", auraName)		
-			
-		if (name == auraName) then -- We have Aura up and Aura ID is matching our list	
-		
-			local getTime = GetTime()
-			local remainingTime = 0
-			if(expirationTime~=0) then
-				remainingTime = math.floor(expirationTime - getTime + 0.5)
+		local found = false
+		for i=1,40 do
+			local name, _, count, _, _, expirationTime, _, _, _, _= UnitBuff("pet", i)		
+			if (name == auraName) then -- We have Aura up and Aura ID is matching our list	
+				found = true
+				local getTime = GetTime()
+				local remainingTime = 0
+				if(expirationTime~=0) then
+					remainingTime = math.floor(expirationTime - getTime + 0.5)
+				end
+				if (lastBuffStatePet[auraId] ~= "BuffOn" .. count .. remainingTime) then			
+					lastBuffStatePet[auraId] = "BuffOn" .. count 
+					remainingTime = string.format("%00.2f",tostring(remainingTime) )
+					local green = tonumber(strsub(tostring(remainingTime), 1, 2))/100
+					local blue = tonumber(strsub(tostring(remainingTime), -2,-1))/100
+					--print("expirationTime:"..expirationTime.." remainingTime:" .. remainingTime .. " blue:" .. blue .. " strbluecount:" ..  strbluecount)
+					petBuffFrames[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
+					petBuffFrames[auraId].t:SetAllPoints(false)
+					--print("[" .. buff .. "] " .. auraName.. " " .. count .. " Green: " .. green)
+				end
 			end
-			
-			if (lastBuffStatePet[auraId] ~= "BuffOn" .. count .. remainingTime) then			
-				lastBuffStatePet[auraId] = "BuffOn" .. count 
-				remainingTime = string.format("%00.2f",tostring(remainingTime) )
-				local green = tonumber(strsub(tostring(remainingTime), 1, 2))/100
-				local blue = tonumber(strsub(tostring(remainingTime), -2,-1))/100
-				--print("expirationTime:"..expirationTime.." remainingTime:" .. remainingTime .. " blue:" .. blue .. " strbluecount:" ..  strbluecount)
-				petBuffFrames[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
-				petBuffFrames[auraId].t:SetAllPoints(false)
-				--print("[" .. buff .. "] " .. auraName.. " " .. count .. " Green: " .. green)
-			end
-		else
-			if (lastBuffStatePet[auraId] ~= "BuffOff") then
+		end
+		if (found and lastBuffStatePet[auraId] ~= "BuffOff") then
 				petBuffFrames[auraId].t:SetColorTexture(1, 1, 1, alphaColor)
 				petBuffFrames[auraId].t:SetAllPoints(false)
 				lastBuffStatePet[auraId] = "BuffOff"
 				--print("[" .. buff .. "] " .. auraName.. " Off")
-			end
 		end
 	end
 end
@@ -1460,34 +1461,34 @@ local function updatePlayerDebuffs(self, event)
                 playerDebuffFrames[auraId].t:SetAllPoints(false)
                 lastPlayerDebuffState[auraId] = "DebuffOff"               
             end
-    
             return
         end
         
 		--print("Getting debuff for Id = " .. auraName)
-		
-        local name, _, _, count, _, _, expirationTime, _, _,_, spellId, _, _, _, _, _ = UnitDebuff("player", auraName, nil, "PLAYER|HARMFUL")
-
-		if (name == auraName) then -- We have Aura up and Aura ID is matching our list					
-            local getTime = GetTime()
-            local remainingTime = math.floor(expirationTime - getTime + 0.5) 	
-
-			if (lastPlayerDebuffState[auraId] ~= "DebuffOn" .. count .. remainingTime) then
-				lastPlayerDebuffState[auraId] = "DebuffOn" .. count .. remainingTime
-                remainingTime = string.format("%00.2f",tostring(remainingTime) )
-				local green = tonumber(strsub(tostring(remainingTime), 1, 2))/100
-				local blue = tonumber(strsub(tostring(remainingTime), -2,-1))/100
-                playerDebuffFrames[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
-				playerDebuffFrames[auraId].t:SetAllPoints(false)
-                --print("[" .. buff .. "] " .. auraName.. " " .. count .. " Green: " .. green .. " Blue: " .. blue)
-            end
-        else
-            if (lastPlayerDebuffState[auraId] ~= "DebuffOff") then
+		local found = false
+		for i=1,40 do
+			local name, _, count, _, _, expirationTime, _, _,_, spellId, _, _, _, _, _ = UnitDebuff("player",i, "PLAYER|HARMFUL")
+			if (name == auraName) then -- We have Aura up and Aura ID is matching our list					
+				found = true
+		        local getTime = GetTime()
+			    local remainingTime = math.floor(expirationTime - getTime + 0.5) 	
+				if (lastPlayerDebuffState[auraId] ~= "DebuffOn" .. count .. remainingTime) then
+					lastPlayerDebuffState[auraId] = "DebuffOn" .. count .. remainingTime
+			        remainingTime = string.format("%00.2f",tostring(remainingTime) )
+					local green = tonumber(strsub(tostring(remainingTime), 1, 2))/100
+					local blue = tonumber(strsub(tostring(remainingTime), -2,-1))/100
+					playerDebuffFrames[auraId].t:SetColorTexture(count/100, green, blue, alphaColor)
+					playerDebuffFrames[auraId].t:SetAllPoints(false)
+					--print("[" .. buff .. "] " .. auraName.. " " .. count .. " Green: " .. green .. " Blue: " .. blue)
+				end
+				break
+			end
+		end
+        if (found and lastPlayerDebuffState[auraId] ~= "DebuffOff") then
                 playerDebuffFrames[auraId].t:SetColorTexture(1, 1, 1, alphaColor)
                 playerDebuffFrames[auraId].t:SetAllPoints(false)
                 lastPlayerDebuffState[auraId] = "DebuffOff"
                 --print("[" .. buff .. "] " .. auraName.. " Off")
-            end
         end
     end
 end
@@ -1506,6 +1507,7 @@ local function updateIsSpellOverlayedFrames(self, event)
 end
 
 local function InitializeOne()
+	--print("InitializeOne()")
     local i = 0
 
 	--print ("Initialising Health Frames")	
@@ -1531,10 +1533,11 @@ local function InitializeOne()
 	powerFrame.t:SetColorTexture(1, 1, 1, alphaColor)
 	powerFrame.t:SetAllPoints(powerFrame)    
 	powerFrame:Show()
+	--print("Registering Events for Power Frames")
 	powerFrame:RegisterEvent("PLAYER_ENTERING_WORLD")		
 	powerFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     powerFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    powerFrame:RegisterUnitEvent("UNIT_POWER","player")				
+    powerFrame:RegisterUnitEvent("UNIT_POWER_UPDATE","player")				
 	powerFrame:SetScript("OnEvent", updatePower)
 
 	--print ("Initialising Target Health Frames")    
@@ -1577,7 +1580,7 @@ local function InitializeOne()
 	unitPowerFrame:RegisterEvent("PLAYER_ENTERING_WORLD")		
 	unitPowerFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     unitPowerFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    unitPowerFrame:RegisterUnitEvent("UNIT_POWER","player")
+    unitPowerFrame:RegisterUnitEvent("UNIT_POWER_UPDATE","player")
 	unitPowerFrame:SetScript("OnEvent", updateUnitPower)	
 	
     --print ("Initialising IsTargetFriendly Frame")
@@ -1811,6 +1814,8 @@ local function InitializeOne()
 end
 
 local function InitializeTwo()
+	--print("InitializeTwo()")
+
 	--print ("Initialising Player Debuff Frames")
 	local i = 0
 	    for i = 1, 2 do
@@ -1954,7 +1959,9 @@ local function eventHandler(self, event, ...)
 	local arg1 = ...
 	if event == "ADDON_LOADED" then
 		if (arg1 == "[PixelMagic]") then
+			--print("Calling init 1")
 			InitializeOne()
+			--print("calling init 2")
             InitializeTwo()
 		end
 	end
