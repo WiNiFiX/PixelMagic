@@ -1,0 +1,424 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{FD789C2C-A655-4892-B9AC-E45EF4076BBF}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>ShadowMagic</RootNamespace>
+    <AssemblyName>ShadowMagic</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <TargetFrameworkProfile />
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+    <SccProjectName>
+    </SccProjectName>
+    <SccLocalPath>
+    </SccLocalPath>
+    <SccAuxPath>
+    </SccAuxPath>
+    <SccProvider>
+    </SccProvider>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>Builds\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <LangVersion>6</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>ShadowMagic.GUI.Program</StartupObject>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.DirectoryServices.AccountManagement" />
+    <Reference Include="System.Management" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Speech" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="GUI\frmImageToByteArray.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GUI\frmImageToByteArray.Designer.cs">
+      <DependentUpon>frmImageToByteArray.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GUI\frmSubmitTicket.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GUI\frmSubmitTicket.Designer.cs">
+      <DependentUpon>frmSubmitTicket.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GUI\frmTicket.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GUI\frmTicket.Designer.cs">
+      <DependentUpon>frmTicket.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GUI\Main.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GUI\Main.Designer.cs">
+      <DependentUpon>Main.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GUI\frmSelectAddonName.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GUI\frmSelectAddonName.Designer.cs">
+      <DependentUpon>frmSelectAddonName.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GUI\SelectWoWProcessToAttachTo.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GUI\SelectWoWProcessToAttachTo.Designer.cs">
+      <DependentUpon>SelectWoWProcessToAttachTo.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GUI\SetupHotkeys.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GUI\SetupHotkeys.Designer.cs">
+      <DependentUpon>SetupHotkeys.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GUI\SetupSpellBook.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GUI\SetupSpellBook.Designer.cs">
+      <DependentUpon>SetupSpellBook.cs</DependentUpon>
+    </Compile>
+    <Compile Include="GUI\Testing Pixels.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GUI\Testing Pixels.Designer.cs">
+      <DependentUpon>Testing Pixels.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Helpers\Addons\Addon.cs" />
+    <Compile Include="Helpers\Addons\Boss\LibBossIdsAddon.cs" />
+    <Compile Include="Helpers\Addons\Boss\LibStub\LibStub.cs" />
+    <Compile Include="Helpers\Addons\Range\LibRangeAddon.cs" />
+    <Compile Include="Helpers\Addons\Range\LibStub\LibStub.cs" />
+    <Compile Include="Helpers\Aura.cs" />
+    <Compile Include="Helpers\ConfigFile.cs" />
+    <Compile Include="Helpers\DetectKeyPress.cs" />
+    <Compile Include="Helpers\KeyboardHook.cs" />
+    <Compile Include="Helpers\NativeMethods.cs" />
+    <Compile Include="Helpers\GameDVR.cs" />
+    <Compile Include="Helpers\Item.cs" />
+    <Compile Include="Helpers\Ticket.cs" />
+    <Compile Include="Helpers\Log.cs" />
+    <Compile Include="Helpers\Mouse.cs" />
+    <Compile Include="Helpers\MouseHook.cs" />
+    <Compile Include="Helpers\RegEdit.cs" />
+    <Compile Include="Helpers\Spell.cs" />
+    <Compile Include="Helpers\SpellBook.cs" />
+    <Compile Include="Helpers\Threads.cs" />
+    <Compile Include="Helpers\Web.cs" />
+    <Compile Include="Helpers\WoW.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Rotations\DeathKnight\DeathKnight-Blood-FmFlex.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DeathKnight\DeathKnight-Blood-smartie.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DeathKnight\DeathKnight-Blood-Vectarius.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DeathKnight\DeathKnight-Frost-FmFlex.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DeathKnight\DeathKnight-Frost-smartie.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DeathKnight\DeathKnight-Frost-Vectarius.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DeathKnight\DeathKnight-Unholy-smartie.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DeathKnight\DeathKnight-Unholy-Suitz.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DeathKnight\DeathKnight-Unholy-WiNiFiX.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DemonHunter\DemonHunter-Havoc-Lfstyles.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DemonHunter\DemonHunter-Havoc-WiNiFiX.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DemonHunter\DemonHunter-Havoc-Zanrub.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DemonHunter\DemonHunter-Vengeance-Jedix.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DemonHunter\DemonHunter-Vengeance-Lesion.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\DemonHunter\DemonHunter-Vengeance-WiNiFiX.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Druid\Druid-Balance-Scotishdwarf.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Druid\Druid-Feral-Scotishdwarf.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Druid\Druid-Guardian-Inhade.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Hunter\Hunter-Beast Mastery-Vectarius.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Hunter\Hunter-BeastMastery-Goat.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Hunter\Hunter-Beastmastery-Vectarius.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Hunter\Hunter-Marksman-Vectarius.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Hunter\Hunter-Survival-Vectarius.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Mage\Mage-Arcane-Lesion.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Mage\Mage-Fire-Creepyjoker-fixed.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Mage\Mage-Fire-Creepyjoker.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Mage\Mage-Fire-Nilrem2004.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Mage\Mage-Frost-lesion.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Monk\Monk-BrewMaster-BrewDrinkCode.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Monk\Monk-Windwalker-Mixo.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Paladin\Paladin-Protection-Scotishdwarf.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Paladin\Paladin-Protection-WiNiFiX.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Paladin\Paladin-Retribution-GennPen.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Paladin\Paladin-Retribution-WiNiFiX.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Priest\Priest-Disc-WiNiFiX.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Priest\Priest-Shadow-Miestro.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Priest\Priest-Shadow-TWonderchild.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Rogue\Rogue-Assasination-Creepyjoker.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Rogue\Rogue-Assasination-Vectarius.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Rogue\Rogue-Outlaw-Creepyjoker.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Rogue\Rogue-Subtlety-Zanrub.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Shaman\Shaman-Elemental-Toomicek.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Shaman\Shaman-Enhancement-Toomicek.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Warlock\Warlock-Affliction-Sorcerer.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Warlock\Warlock-Demonology-Mixo.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Warlock\Warlock-Demonology-Nilrem2004.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Warlock\Warlock-Destruction-Mixo.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Warlock\Warlock-Destruction-Nilrem2004.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Warrior\Warrior-Arms-Dupe.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Warrior\Warrior-Fury-Loodak.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Warrior\Warrior-Fury-nomnomnom.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotations\Warrior\Warrior-Protection-Nilrem2004.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Rotation\CombatRoutine.cs" />
+    <None Include="LUA\Addon.lua">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Resources\Refresh2_16x16.png" />
+    <None Include="Resources\PageSetup_16x16.png" />
+    <None Include="Resources\Project_16x16.png" />
+    <None Include="Resources\Version_16x16.png" />
+    <None Include="Resources\help.png" />
+    <None Include="Resources\Close_16x16.png" />
+    <None Include="Resources\Register.png" />
+    <Content Include="app.ico" />
+    <None Include="Resources\pm.png" />
+    <None Include="Resources\Discord-Logo-White.png" />
+    <None Include="Resources\Discord-Logo+Wordmark-Black.png" />
+    <None Include="Resources\play-icon.png" />
+    <None Include="Resources\play-icon1.png" />
+    <None Include="Resources\Actions-arrow-right-icon.png" />
+    <None Include="Resources\Settings-2-icon.png" />
+    <None Include="Resources\Media-Controls-Play-icon.png" />
+    <None Include="Resources\Computer-Hardware-Restart-icon.png" />
+    <None Include="Resources\Heart-Shadow-icon.png" />
+    <None Include="Resources\Comment_16x16.png" />
+    <EmbeddedResource Include="GUI\frmImageToByteArray.resx">
+      <DependentUpon>frmImageToByteArray.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GUI\frmSubmitTicket.resx">
+      <DependentUpon>frmSubmitTicket.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GUI\frmTicket.resx">
+      <DependentUpon>frmTicket.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GUI\Main.resx">
+      <DependentUpon>Main.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GUI\frmSelectAddonName.resx">
+      <DependentUpon>frmSelectAddonName.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GUI\SelectWoWProcessToAttachTo.resx">
+      <DependentUpon>SelectWoWProcessToAttachTo.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GUI\SetupHotkeys.resx">
+      <DependentUpon>SetupHotkeys.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GUI\SetupSpellBook.resx">
+      <DependentUpon>SetupSpellBook.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GUI\Testing Pixels.resx">
+      <DependentUpon>Testing Pixels.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <SubType>Designer</SubType>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <None Include="app.manifest" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="License.txt" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>cd $(ConfigurationName)
+del *.xml
+del *.config
+rmdir Logs /s /q
+del *.pdb
+</PostBuildEvent>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
