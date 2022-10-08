@@ -376,6 +376,17 @@ local function Talents()
 	PlayerStatFrame[5].t:SetColorTexture(EquipmentManger.Legendary1,EquipmentManger.Legendary2,0, alphaColor)
 end
 
+function GetUnitBuff(unit, buff)
+    for i=1,40 do
+        local name, _, _, count, _, _, expirationTime, _, _,_, spellId, _, _, _, _, _ = UnitBuff(unit,i)
+        if name == buff then
+            return name, count, expirationTime, spellId
+        end
+    end
+    return nil
+end
+
+
 local function updateTargetBuffs()
 	for _, auraId in pairs(buffs) do
 		local auraName = GetSpellInfo(auraId)
@@ -389,7 +400,7 @@ local function updateTargetBuffs()
             return
         end
 
-        local name, _, _, count, _, _, expirationTime, _, _, _, spellId = UnitBuff("target", auraName)
+        local name, count, expirationTime, spellId = GetUnitBuff("target", auraName)
 
 		if (name == auraName) then -- We have Aura up and Aura ID is matching our list
                 local remainingTime = 0
@@ -578,7 +589,7 @@ local function updateMyBuffs(self, event)
 			return
 		end
 
-        local name, _, _, count, _, duration, expirationTime, _, _, _, spellId = UnitBuff("player", auraName)
+        local name, count, duration, expirationTime, spellId = GetUnitBuff("player", auraName)
 
 		if (name == auraName) then -- We have Aura up and Aura ID is matching our list
                 local remainingTime = 0
@@ -609,6 +620,17 @@ local function updateMyBuffs(self, event)
     end
 end
 
+function GetDebuff(unit, debuff)
+    for i=1,40 do
+        local name, _, _, count, _, _, expirationTime, _, _,_, spellId, _, _, _, _, _ = UnitDebuff(unit,i,nil,"PLAYER|HARMFUL")
+        if name == debuff then
+            return name, count, expirationTime, spellId
+        end
+    end
+    return nil
+end
+
+
 local function updateTargetDebuffs(self, event)
     
 	for _, auraId in pairs(debuffs) do
@@ -624,7 +646,7 @@ local function updateTargetDebuffs(self, event)
             return
         end
  		--print("Getting debuff for Id = " .. auraName)
-		local name, _, _, count, _, duration, expirationTime, _, _, _, spellId, _, _, _, _, _ = UnitDebuff("target", auraName, nil, "PLAYER|HARMFUL")
+		local name, count, duration, expirationTime, spellId = GetDebuff("target", auraName)
 	    if name == "Unstable Affliction" and (name == auraName) then
               count = 0
                 index = 1
@@ -1121,7 +1143,7 @@ local function updateLastSpell(self, event, ...)
         
     local _, _, _, _, spellID = ...
     
-    if (event == "UNIT_SPELLCAST_SUCCEEDED") then
+    if (event == "UNIT_SPELLCAST_SUCCEEDED" and spellID ~= nil) then
         local strRed = ""
 		local strBlue = ""
 		local strGreen = ""
@@ -1417,7 +1439,7 @@ local function updateMyPetBuffs(self, event)
 			return
 		end
 		
-		local name, _, _, count, _, _, expirationTime, _, _, _, _= UnitBuff("pet", auraName)		
+		local name, count, expirationTime = GetUnitBuff("pet", auraName)		
 			
 		if (name == auraName) then -- We have Aura up and Aura ID is matching our list	
 		
@@ -1448,6 +1470,7 @@ local function updateMyPetBuffs(self, event)
 	end
 end
 
+
 local function updatePlayerDebuffs(self, event)
     
 	for _, auraId in pairs(debuffs) do
@@ -1466,7 +1489,7 @@ local function updatePlayerDebuffs(self, event)
         
 		--print("Getting debuff for Id = " .. auraName)
 		
-        local name, _, _, count, _, _, expirationTime, _, _,_, spellId, _, _, _, _, _ = UnitDebuff("player", auraName, nil, "PLAYER|HARMFUL")
+        local name, count, expirationTime, spellId =  GetDebuff("player", auraName)
 
 		if (name == auraName) then -- We have Aura up and Aura ID is matching our list					
             local getTime = GetTime()
@@ -1534,7 +1557,7 @@ local function InitializeOne()
 	powerFrame:RegisterEvent("PLAYER_ENTERING_WORLD")		
 	powerFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     powerFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    powerFrame:RegisterUnitEvent("UNIT_POWER","player")				
+    --powerFrame:RegisterUnitEvent("UNIT_POWER","player")				** TODO **
 	powerFrame:SetScript("OnEvent", updatePower)
 
 	--print ("Initialising Target Health Frames")    
@@ -1577,7 +1600,7 @@ local function InitializeOne()
 	unitPowerFrame:RegisterEvent("PLAYER_ENTERING_WORLD")		
 	unitPowerFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     unitPowerFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    unitPowerFrame:RegisterUnitEvent("UNIT_POWER","player")
+    --unitPowerFrame:RegisterUnitEvent("UNIT_POWER","player") ** TODO **
 	unitPowerFrame:SetScript("OnEvent", updateUnitPower)	
 	
     --print ("Initialising IsTargetFriendly Frame")
@@ -1975,3 +1998,5 @@ local function eventHandler(self, event, ...)
 
 end	
 parent:SetScript("OnEvent", eventHandler)
+
+

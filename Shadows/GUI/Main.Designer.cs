@@ -302,7 +302,7 @@
             this.toolStripStatusLabel5.ForeColor = System.Drawing.Color.Black;
             this.toolStripStatusLabel5.Name = "toolStripStatusLabel5";
             this.toolStripStatusLabel5.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
-            this.toolStripStatusLabel5.Size = new System.Drawing.Size(205, 19);
+            this.toolStripStatusLabel5.Size = new System.Drawing.Size(342, 19);
             this.toolStripStatusLabel5.Spring = true;
             this.toolStripStatusLabel5.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
@@ -501,7 +501,7 @@
             this.MinimumSize = new System.Drawing.Size(971, 600);
             this.Name = "frmMain";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "ShadowMagic .. where the magic happens";
+            this.Text = "Shadows .. where the magic happens";
             this.Load += new System.EventHandler(this.frmMain_Load);
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
