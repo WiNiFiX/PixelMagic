@@ -4,7 +4,7 @@
     {
         public static string LuaContents = @"
 -- Configurable Variables
-local size = 5;	-- this is the size of the ""pixels"" at the top of the screen that will show stuff, currently 5x5 because its easier to see and debug with
+local size = 1;	-- this is the size of the ""pixels"" at the top of the screen that will show stuff, currently 5x5 because its easier to see and debug with
 
 -- Actual Addon Code below
 local f = CreateFrame(""frame"")

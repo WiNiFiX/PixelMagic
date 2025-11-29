@@ -236,6 +236,45 @@ namespace ShadowMagic.Helpers
         private static SpeechSynthesizer synthesizer;
         private static readonly IDictionary<string, int> damageModifierHash = new Dictionary<string, int>();
 
+        // Helper for Improvement 1: Encapsulate dtColorHelper Value Retrieval
+        private static int GetValueFromRoundedColorComponent(int componentValue, string debugContext, int defaultValue)
+        {
+            try
+            {
+                var valueRow = dtColorHelper.Select($"[Rounded] = '{componentValue}'").FirstOrDefault();
+                if (valueRow != null && valueRow["Value"] != DBNull.Value)
+                {
+                    return int.Parse(valueRow["Value"].ToString());
+                }
+                Log.Write($"Warning: Value not found for rounded component {componentValue} in {debugContext}.", Color.Orange);
+                return defaultValue;
+            }
+            catch (Exception ex)
+            {
+                Log.Write($"Error in GetValueFromRoundedColorComponent for {debugContext}, component {componentValue}: {ex.Message}", Color.Red);
+                return defaultValue;
+            }
+        }
+
+
+        // For GetBlockColor caching (Improvement 5)
+        private static Dictionary<(int, int), Color> _pixelCache = new Dictionary<(int, int), Color>();
+        private static DateTime _lastCacheClear = DateTime.MinValue;
+        private static readonly TimeSpan CacheDuration = TimeSpan.FromMilliseconds(50); // Example duration
+
+        // Constants for magic numbers (Improvement 3)
+        private const int MAX_COLOR_COMPONENT_VALUE = 255;
+        private const int PERCENTAGE_MULTIPLIER = 100;
+        private const int SPELL_ID_COMPONENT_DIVISOR = 10;
+        private const int SPELL_ID_PLACEHOLDER_VALUE = 10; // Value meaning "not present" in spell ID components (e.g., if a digit is 0)
+        private const int DEFAULT_POWER_VALUE = 100; // Common default for power, health, etc.
+        private const int MAX_INVENTORY_SLOTS = 18;
+        private const int MAX_AURA_SLOTS = 40;
+        private const int MIN_KEY_SEND_MILLISECONDS = 50;
+        // Specific values for dtColorHelper (Improvement 6)
+        private const int DT_COLOR_HELPER_30_VALUE = 30; // Value 30 maps to Rounded 77
+        private const int DT_COLOR_HELPER_70_VALUE = 70; // Value 70 maps to Rounded 179
+
         private static string Version => Process.MainModule.FileVersionInfo.FileVersion;
         public static string InstallPath => Path.GetDirectoryName(Process?.MainModule.FileName);
         public static string AddonPath => InstallPath + "\\Interface\\AddOns";
@@ -428,18 +467,7 @@ namespace ShadowMagic.Helpers
             get
             {
                 var c = GetBlockColor(5, 1);
-                try
-                {
-                    var unitPower = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                    // ReSharper disable once AssignNullToNotNullAttribute
-                    return unitPower != null ? int.Parse(unitPower) : 100;
-                }
-                catch (Exception ex)
-                {
-                    Log.Write($"[UnitPower] Red = {c.R}");
-                    Log.Write(ex.Message, Color.Red);
-                    return 100;
-                }
+                return GetValueFromRoundedColorComponent(c.G, "UnitPower (Green component)", DEFAULT_POWER_VALUE);
             }
         }
 
@@ -462,19 +490,7 @@ namespace ShadowMagic.Helpers
             get
             {
                 var c = GetBlockColor(1, 1);
-                try
-                {
-                    var health = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()?["Value"].ToString();
-
-                    // ReSharper disable once AssignNullToNotNullAttribute
-                    return health != null ? int.Parse(health) : 100;
-                }
-                catch (Exception ex)
-                {
-                    Log.Write($"[Health] Red = {c.R}");
-                    Log.Write(ex.Message, Color.Red);
-                    return 100;
-                }
+                return GetValueFromRoundedColorComponent(c.R, "HealthPercent (Red component)", PERCENTAGE_MULTIPLIER);
             }
         }
 
@@ -490,16 +506,13 @@ namespace ShadowMagic.Helpers
                 var c = GetBlockColor(1, 23);
                 try
                 {
-                    if (c.R != 255 || c.B == 0)
+                    if (c.R != MAX_COLOR_COMPONENT_VALUE || c.B == 0)
                         return 0;
-                        var power = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                        return power != null ? int.Parse(power) : 0;
-                    
+                    return GetValueFromRoundedColorComponent(c.G, "CountEnemyNPCsInRange (Green component)", 0);
                 }
                 catch (Exception ex)
                 {
-                    Log.Write("Error in Npc Count  Green = " + c.G);
-
+                    Log.Write("Error in Npc Count Green = " + c.G);
                     Log.Write(ex.Message, Color.Red);
                 }
                 return 1;
@@ -541,7 +554,7 @@ namespace ShadowMagic.Helpers
         /// <returns>#num of piece of set worn</returns>
         public static int SetBonus(int tier)
         {
-            var c = WoW.GetBlockColor(3, 24);
+            var c = GetPlayerStatBlockColor(3); // Lua logical (2,23)
             if (c.B != 0)
                 return 0;
             try
@@ -549,25 +562,24 @@ namespace ShadowMagic.Helpers
                 if (tier > 20 || tier < 19)
                     return 0;
                 
-                c = WoW.GetBlockColor(4, 24);
-                var slot = c.R;
+                c = GetPlayerStatBlockColor(4); // Lua logical (3,23)
+                int slotValue;
                 switch (tier)
                 {
                     case 19:
-                        slot = c.G;
+                        slotValue = c.G;
                         break;
                     case 20:
-                        slot = c.B;
+                        slotValue = c.B;
                         break;
                     default:
                         return 0;
                 }
-                var power = dtColorHelper.Select($"[Rounded] = '{slot}'").FirstOrDefault()?["Value"].ToString();
-                return power != null ? int.Parse(power) : 0;
+                return GetValueFromRoundedColorComponent(slotValue, $"SetBonus (Tier {tier} component)", 0);
             }
             catch (Exception ex)
             {
-                Log.Write("Error in Setbonus Red  = " + c.R);
+                Log.Write($"Error in SetBonus Red = {c.R}");
                 Log.Write(ex.Message, Color.Red);
             }
             return 0;
@@ -579,31 +591,29 @@ namespace ShadowMagic.Helpers
         /// <returns>EquipmentSlot legendar worn</returns>
         public static int Legendary(int num)
         {
-            var c = WoW.GetBlockColor(3, 24);
+            var c = GetPlayerStatBlockColor(3); // Lua logical (2,23)
             if (c.B != 0)
                 return 0;
             try
             {
-                c = WoW.GetBlockColor(5, 24);
-                var slot = c.R;
+                c = GetPlayerStatBlockColor(5); // Lua logical (4,23)
+                int slotValue;
                 switch (num)
                 {
                     case 1:
-                        slot = c.R;
+                        slotValue = c.R;
                         break;    
                     case 2:
-                        slot = c.G;
+                        slotValue = c.G;
                         break;
                     default:
                         return 0;
                 }
-                var power = dtColorHelper.Select($"[Rounded] = '{slot}'").FirstOrDefault()?["Value"].ToString();
-                return power != null ? int.Parse(power) : 0;
+                return GetValueFromRoundedColorComponent(slotValue, $"Legendary (Num {num} component)", 0);
             }
             catch (Exception ex)
             {
-                Log.Write("Error in legendary Red  = " + c.R);
-
+                Log.Write($"Error in legendary Red = {c.R}");
                 Log.Write(ex.Message, Color.Red);
             }
             return 0;
@@ -622,19 +632,7 @@ namespace ShadowMagic.Helpers
                 if (!HasPet) return 0;
 
                 var c = GetBlockColor(13, 1);
-                try
-                {
-                    var health = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()?["Value"].ToString();
-
-                    // ReSharper disable once AssignNullToNotNullAttribute
-                    return health != null ? int.Parse(health) : 100;
-                }
-                catch (Exception ex)
-                {
-                    Log.Write($"[PetHealth] Red = {c.R}");
-                    Log.Write(ex.Message, Color.Red);
-                    return 100;
-                }
+                return GetValueFromRoundedColorComponent(c.R, "PetHealthPercent (Red component)", PERCENTAGE_MULTIPLIER);
             }
         }
 
@@ -650,58 +648,7 @@ namespace ShadowMagic.Helpers
             {
                 var c1 = GetBlockColor(5, 7);
                 var c2 = GetBlockColor(6, 7);
-                try
-                {
-                    var red1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.R}'").FirstOrDefault()?["Value"])/10);
-                    var green1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var red2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.R}'").FirstOrDefault()?["Value"])/10);
-                    var green2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var strRed1 = "";
-                    var strGreen1 = "";
-                    var strBlue1 = "";
-                    var strRed2 = "";
-                    var strGreen2 = "";
-                    var strBlue2 = "";
-
-                    if (red1 != 10)
-                    {
-                        strRed1 = red1.ToString();
-                    }
-                    if (green1 != 10)
-                    {
-                        strGreen1 = green1.ToString();
-                    }
-                    if (blue1 != 10)
-                    {
-                        strBlue1 = blue1.ToString();
-                    }
-                    if (red2 != 10)
-                    {
-                        strRed2 = red2.ToString();
-                    }
-                    if (green2 != 10)
-                    {
-                        strGreen2 = green2.ToString();
-                    }
-                    if (blue2 != 10)
-                    {
-                        strBlue2 = blue2.ToString();
-                    }
-
-                    var spellText = strRed1 + strGreen1 + strBlue1 + strRed2 + strGreen2 + strBlue2;
-                    //Log.Write("Last casted ID: " + spellText);
-                    return RemoveTrailingZerosFromSpell(spellText);
-                }
-                catch (Exception ex)
-                {
-                    Log.Write($" Red1 = {c1.R} Green1 = {c1.G} Blue1 = {c1.B} Red2 = {c2.R} Green2 = {c2.G} Blue2 = {c2.B}");
-                    Log.Write(ex.Message, Color.Red);
-                    return 0;
-                }
+                return GetSpellIdFromTwoColorBlocks(c1, c2, "LastSpellCastedID");
             }
         }
         
@@ -717,6 +664,75 @@ namespace ShadowMagic.Helpers
             return int.Parse(spellId);
         }
 
+        // Helper for Improvement 2: Consolidate Spell ID Retrieval Logic
+        private static int GetSpellIdFromTwoColorBlocks(Color c1, Color c2, string debugContext)
+        {
+            try
+            {
+                var red1 = GetValueFromRoundedColorComponent(c1.R, $"{debugContext} c1.R", 0) / SPELL_ID_COMPONENT_DIVISOR;
+                var green1 = GetValueFromRoundedColorComponent(c1.G, $"{debugContext} c1.G", 0) / SPELL_ID_COMPONENT_DIVISOR;
+                var blue1 = GetValueFromRoundedColorComponent(c1.B, $"{debugContext} c1.B", 0) / SPELL_ID_COMPONENT_DIVISOR;
+
+                var red2 = GetValueFromRoundedColorComponent(c2.R, $"{debugContext} c2.R", 0) / SPELL_ID_COMPONENT_DIVISOR;
+                var green2 = GetValueFromRoundedColorComponent(c2.G, $"{debugContext} c2.G", 0) / SPELL_ID_COMPONENT_DIVISOR;
+                var blue2 = GetValueFromRoundedColorComponent(c2.B, $"{debugContext} c2.B", 0) / SPELL_ID_COMPONENT_DIVISOR;
+
+                string strRed1 = (red1 != SPELL_ID_PLACEHOLDER_VALUE) ? red1.ToString() : "";
+                string strGreen1 = (green1 != SPELL_ID_PLACEHOLDER_VALUE) ? green1.ToString() : "";
+                string strBlue1 = (blue1 != SPELL_ID_PLACEHOLDER_VALUE) ? blue1.ToString() : "";
+                string strRed2 = (red2 != SPELL_ID_PLACEHOLDER_VALUE) ? red2.ToString() : "";
+                string strGreen2 = (green2 != SPELL_ID_PLACEHOLDER_VALUE) ? green2.ToString() : "";
+                string strBlue2 = (blue2 != SPELL_ID_PLACEHOLDER_VALUE) ? blue2.ToString() : "";
+                
+                var spellText = strRed1 + strGreen1 + strBlue1 + strRed2 + strGreen2 + strBlue2;
+                return RemoveTrailingZerosFromSpell(spellText);
+            }
+            catch (Exception ex)
+            {
+                Log.Write($"Error reconstructing spell ID for {debugContext}: {ex.Message}", Color.Red);
+                return 0;
+            }
+        }
+        
+        // Helper for Improvement 4: Streamline Player Stat Access
+        private static Color GetPlayerStatBlockColor(int blockIndex)
+        {
+            // Player stats are mostly in row 24 (Lua logical -23)
+            // C# row is 1-indexed, so 24.
+            // Lua column is size*(i-1). C# column is blockIndex (1-indexed)
+            return GetBlockColor(blockIndex, 24);
+        }
+
+        // Helper for Improvement 2: Consolidate Spell ID Retrieval Logic
+        private static int GetSpellIdFromTwoColorBlocks(Color c1, Color c2, string debugContext)
+        {
+            try
+            {
+                var red1 = GetValueFromRoundedColorComponent(c1.R, $"{debugContext} c1.R", 0) / SPELL_ID_COMPONENT_DIVISOR;
+                var green1 = GetValueFromRoundedColorComponent(c1.G, $"{debugContext} c1.G", 0) / SPELL_ID_COMPONENT_DIVISOR;
+                var blue1 = GetValueFromRoundedColorComponent(c1.B, $"{debugContext} c1.B", 0) / SPELL_ID_COMPONENT_DIVISOR;
+
+                var red2 = GetValueFromRoundedColorComponent(c2.R, $"{debugContext} c2.R", 0) / SPELL_ID_COMPONENT_DIVISOR;
+                var green2 = GetValueFromRoundedColorComponent(c2.G, $"{debugContext} c2.G", 0) / SPELL_ID_COMPONENT_DIVISOR;
+                var blue2 = GetValueFromRoundedColorComponent(c2.B, $"{debugContext} c2.B", 0) / SPELL_ID_COMPONENT_DIVISOR;
+
+                string strRed1 = (red1 != SPELL_ID_PLACEHOLDER_VALUE) ? red1.ToString() : "";
+                string strGreen1 = (green1 != SPELL_ID_PLACEHOLDER_VALUE) ? green1.ToString() : "";
+                string strBlue1 = (blue1 != SPELL_ID_PLACEHOLDER_VALUE) ? blue1.ToString() : "";
+                string strRed2 = (red2 != SPELL_ID_PLACEHOLDER_VALUE) ? red2.ToString() : "";
+                string strGreen2 = (green2 != SPELL_ID_PLACEHOLDER_VALUE) ? green2.ToString() : "";
+                string strBlue2 = (blue2 != SPELL_ID_PLACEHOLDER_VALUE) ? blue2.ToString() : "";
+                
+                var spellText = strRed1 + strGreen1 + strBlue1 + strRed2 + strGreen2 + strBlue2;
+                return RemoveTrailingZerosFromSpell(spellText);
+            }
+            catch (Exception ex)
+            {
+                Log.Write($"Error reconstructing spell ID for {debugContext}: {ex.Message}", Color.Red);
+                return 0;
+            }
+        }
+
         /// <summary>
         /// Gets the target casting spell identifier.
         /// </summary>
@@ -730,58 +746,7 @@ namespace ShadowMagic.Helpers
                 if (!HasTarget) return 0;
                 var c1 = GetBlockColor(7, 7);
                 var c2 = GetBlockColor(8, 7);
-                try
-                {
-                    var red1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.R}'").FirstOrDefault()?["Value"])/10);
-                    var green1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var red2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.R}'").FirstOrDefault()?["Value"])/10);
-                    var green2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var strRed1 = "";
-                    var strGreen1 = "";
-                    var strBlue1 = "";
-                    var strRed2 = "";
-                    var strGreen2 = "";
-                    var strBlue2 = "";
-
-                    if (red1 != 10)
-                    {
-                        strRed1 = red1.ToString();
-                    }
-                    if (green1 != 10)
-                    {
-                        strGreen1 = green1.ToString();
-                    }
-                    if (blue1 != 10)
-                    {
-                        strBlue1 = blue1.ToString();
-                    }
-                    if (red2 != 10)
-                    {
-                        strRed2 = red2.ToString();
-                    }
-                    if (green2 != 10)
-                    {
-                        strGreen2 = green2.ToString();
-                    }
-                    if (blue2 != 10)
-                    {
-                        strBlue2 = blue2.ToString();
-                    }
-
-                    var spellText = strRed1 + strGreen1 + strBlue1 + strRed2 + strGreen2 + strBlue2;
-                    //Log.Write("Target casting spell ID: " + spellText);
-                    return RemoveTrailingZerosFromSpell(spellText);
-                }
-                catch (Exception ex)
-                {
-                    Log.Write($" Red1 = {c1.R} Green1 = {c1.G} Blue1 = {c1.B} Red2 = {c2.R} Green2 = {c2.G} Blue2 = {c2.B}");
-                    Log.Write(ex.Message, Color.Red);
-                    return 0;
-                }
+                return GetSpellIdFromTwoColorBlocks(c1, c2, "TargetCastingSpellID");
             }
         }
 
@@ -797,58 +762,7 @@ namespace ShadowMagic.Helpers
             {
                 var c1 = GetBlockColor(9, 7);
                 var c2 = GetBlockColor(10, 7);
-                try
-                {
-                    var red1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.R}'").FirstOrDefault()?["Value"])/10);
-                    var green1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var red2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.R}'").FirstOrDefault()?["Value"])/10);
-                    var green2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var strRed1 = "";
-                    var strGreen1 = "";
-                    var strBlue1 = "";
-                    var strRed2 = "";
-                    var strGreen2 = "";
-                    var strBlue2 = "";
-
-                    if (red1 != 10)
-                    {
-                        strRed1 = red1.ToString();
-                    }
-                    if (green1 != 10)
-                    {
-                        strGreen1 = green1.ToString();
-                    }
-                    if (blue1 != 10)
-                    {
-                        strBlue1 = blue1.ToString();
-                    }
-                    if (red2 != 10)
-                    {
-                        strRed2 = red2.ToString();
-                    }
-                    if (green2 != 10)
-                    {
-                        strGreen2 = green2.ToString();
-                    }
-                    if (blue2 != 10)
-                    {
-                        strBlue2 = blue2.ToString();
-                    }
-
-                    var spellText = strRed1 + strGreen1 + strBlue1 + strRed2 + strGreen2 + strBlue2;
-                    //Log.Write("Arena 1 casting spell ID: " + spellText);
-                    return RemoveTrailingZerosFromSpell(spellText);
-                }
-                catch (Exception ex)
-                {
-                    Log.Write($" Red1 = {c1.R} Green1 = {c1.G} Blue1 = {c1.B} Red2 = {c2.R} Green2 = {c2.G} Blue2 = {c2.B}");
-                    Log.Write(ex.Message, Color.Red);
-                    return 0;
-                }
+                return GetSpellIdFromTwoColorBlocks(c1, c2, "Arena1CastingSpellID");
             }
         }
 
@@ -864,58 +778,7 @@ namespace ShadowMagic.Helpers
             {
                 var c1 = GetBlockColor(11, 7);
                 var c2 = GetBlockColor(12, 7);
-                try
-                {
-                    var red1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.R}'").FirstOrDefault()?["Value"])/10);
-                    var green1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var red2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.R}'").FirstOrDefault()?["Value"])/10);
-                    var green2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var strRed1 = "";
-                    var strGreen1 = "";
-                    var strBlue1 = "";
-                    var strRed2 = "";
-                    var strGreen2 = "";
-                    var strBlue2 = "";
-
-                    if (red1 != 10)
-                    {
-                        strRed1 = red1.ToString();
-                    }
-                    if (green1 != 10)
-                    {
-                        strGreen1 = green1.ToString();
-                    }
-                    if (blue1 != 10)
-                    {
-                        strBlue1 = blue1.ToString();
-                    }
-                    if (red2 != 10)
-                    {
-                        strRed2 = red2.ToString();
-                    }
-                    if (green2 != 10)
-                    {
-                        strGreen2 = green2.ToString();
-                    }
-                    if (blue2 != 10)
-                    {
-                        strBlue2 = blue2.ToString();
-                    }
-
-                    var spellText = strRed1 + strGreen1 + strBlue1 + strRed2 + strGreen2 + strBlue2;
-                    //Log.Write("Arena 2 casting spell ID: " + spellText);
-                    return RemoveTrailingZerosFromSpell(spellText);
-                }
-                catch (Exception ex)
-                {
-                    Log.Write($" Red1 = {c1.R} Green1 = {c1.G} Blue1 = {c1.B} Red2 = {c2.R} Green2 = {c2.G} Blue2 = {c2.B}");
-                    Log.Write(ex.Message, Color.Red);
-                    return 0;
-                }
+                return GetSpellIdFromTwoColorBlocks(c1, c2, "Arena2CastingSpellID");
             }
         }
 
@@ -931,58 +794,7 @@ namespace ShadowMagic.Helpers
             {
                 var c1 = GetBlockColor(13, 7);
                 var c2 = GetBlockColor(14, 7);
-                try
-                {
-                    var red1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.R}'").FirstOrDefault()?["Value"])/10);
-                    var green1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue1 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c1.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var red2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.R}'").FirstOrDefault()?["Value"])/10);
-                    var green2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.G}'").FirstOrDefault()?["Value"])/10);
-                    var blue2 = (int) (float.Parse((string) dtColorHelper.Select($"[Rounded] = '{c2.B}'").FirstOrDefault()?["Value"])/10);
-
-                    var strRed1 = "";
-                    var strGreen1 = "";
-                    var strBlue1 = "";
-                    var strRed2 = "";
-                    var strGreen2 = "";
-                    var strBlue2 = "";
-
-                    if (red1 != 10)
-                    {
-                        strRed1 = red1.ToString();
-                    }
-                    if (green1 != 10)
-                    {
-                        strGreen1 = green1.ToString();
-                    }
-                    if (blue1 != 10)
-                    {
-                        strBlue1 = blue1.ToString();
-                    }
-                    if (red2 != 10)
-                    {
-                        strRed2 = red2.ToString();
-                    }
-                    if (green2 != 10)
-                    {
-                        strGreen2 = green2.ToString();
-                    }
-                    if (blue2 != 10)
-                    {
-                        strBlue2 = blue2.ToString();
-                    }
-
-                    var spellText = strRed1 + strGreen1 + strBlue1 + strRed2 + strGreen2 + strBlue2;
-                    //Log.Write("Arena 3 casting spell ID: " + spellText);
-                    return RemoveTrailingZerosFromSpell(spellText);
-                }
-                catch (Exception ex)
-                {
-                    Log.Write($" Red1 = {c1.R} Green1 = {c1.G} Blue1 = {c1.B} Red2 = {c2.R} Green2 = {c2.G} Blue2 = {c2.B}");
-                    Log.Write(ex.Message, Color.Red);
-                    return 0;
-                }
+                return GetSpellIdFromTwoColorBlocks(c1, c2, "Arena3CastingSpellID");
             }
         }
 
@@ -1016,19 +828,7 @@ namespace ShadowMagic.Helpers
             get
             {
                 var c = GetBlockColor(3, 1);
-                try
-                {
-                    var health = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()?["Value"].ToString();
-
-                    // ReSharper disable once AssignNullToNotNullAttribute
-                    return health != null ? int.Parse(health) : 50;
-                }
-                catch (Exception ex)
-                {
-                    Log.Write($"[Target Health] Red = {c.R} Green = {c.G}");
-                    Log.Write(ex.Message, Color.Red);
-                    return 100;
-                }
+                return GetValueFromRoundedColorComponent(c.R, "TargetHealthPercent (Red component)", 50);
             }
         }
 
@@ -1047,20 +847,20 @@ namespace ShadowMagic.Helpers
                 try
                 {
                     Log.WriteDirectlyToLogFile($"Green = {c.G} Blue = {c.B}");
-                    if (c.B == 255 && c.B == 255)
+                    if (c.B == MAX_COLOR_COMPONENT_VALUE && c.B == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                         return 0;
 
                     if (c.B != 0)
                     {
-                        var lvl = dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()?["Value"].ToString();
-                        if (lvl != null)
-                            return int.Parse(lvl) + 100;
+                        var lvl = GetValueFromRoundedColorComponent(c.B, "Level (Blue component for >100)", 0);
+                        if (lvl != 0)
+                            return lvl + PERCENTAGE_MULTIPLIER; // Using PERCENTAGE_MULTIPLIER constant
                     }
                     else
                     {
-                        var lvl = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                        if (lvl != null)
-                            return int.Parse(lvl);
+                        var lvl = GetValueFromRoundedColorComponent(c.G, "Level (Green component for <=100)", 0);
+                        if (lvl != 0)
+                            return lvl;
                     }
                 }
                 catch (Exception ex)
@@ -1087,20 +887,20 @@ namespace ShadowMagic.Helpers
                 try
                 {
                     Log.WriteDirectlyToLogFile($"Red = {c.R} Green = {c.G}");
-                    if (c.G == 255 && c.R == 255)
+                    if (c.G == MAX_COLOR_COMPONENT_VALUE && c.R == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                         return 0;
 
                     if (c.G != 0)
                     {
-                        var power = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                        if (power != null)
-                            return int.Parse(power) + 100;
+                        var power = GetValueFromRoundedColorComponent(c.G, "Power (Green component for >100)", 0);
+                        if (power != 0)
+                            return power + PERCENTAGE_MULTIPLIER; // Using PERCENTAGE_MULTIPLIER constant
                     }
                     else
                     {
-                        var power = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()?["Value"].ToString();
-                        if (power != null)
-                            return int.Parse(power);
+                        var power = GetValueFromRoundedColorComponent(c.R, "Power (Red component for <=100)", 0);
+                        if (power != 0)
+                            return power;
                     }
                 }
                 catch (Exception ex)
@@ -1197,16 +997,16 @@ namespace ShadowMagic.Helpers
 
                 try
                 {
-                    if (c.R == 0 || c.R == 255)
+                    if (c.R == 0 || c.R == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                     {
                         Log.WriteDirectlyToLogFile($"Red = {c.R} Green = {c.G}Blue = {c.B}");
-                        var power1 = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()?["Value"].ToString();
-                        var power2 = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                        var power3 = dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()?["Value"].ToString();
-                        if (int.Parse(power1) == 100)
-                            return int.Parse(power2) * 100 + int.Parse(power3);
+                        var power1 = GetValueFromRoundedColorComponent(c.R, "HastePercent c.R", 0);
+                        var power2 = GetValueFromRoundedColorComponent(c.G, "HastePercent c.G", 0);
+                        var power3 = GetValueFromRoundedColorComponent(c.B, "HastePercent c.B", 0);
+                        if (power1 == PERCENTAGE_MULTIPLIER) // Using PERCENTAGE_MULTIPLIER constant
+                            return power2 * PERCENTAGE_MULTIPLIER + power3;
                         else
-                            return -(int.Parse(power2) * 100 + int.Parse(power3));
+                            return -(power2 * PERCENTAGE_MULTIPLIER + power3);
                     }
                 }
                 catch (Exception ex)
@@ -1336,19 +1136,7 @@ namespace ShadowMagic.Helpers
             get
             {
                 var c = GetBlockColor(14, 1);
-
-                try
-                {
-                    var Red = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()["Value"].ToString();
-
-                    return int.Parse(Red);
-                }
-                catch (Exception ex)
-                {
-                    Log.Write("Error: Wild Imps " + ex.Message, Color.Red);
-                }
-
-                return 0;
+                return GetValueFromRoundedColorComponent(c.R, "WildImpsCount (Red component)", 0);
             }
         }
 
@@ -1363,18 +1151,7 @@ namespace ShadowMagic.Helpers
             get
             {
                 var c = GetBlockColor(14, 1);
-
-                try
-                {
-                    var Blue = dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()["Value"].ToString();
-
-                    return int.Parse(Blue);
-                }
-                catch (Exception ex)
-                {
-                    Log.Write("Error: Dreadstalkers " + ex.Message, Color.Red);
-                }
-                return 0;
+                return GetValueFromRoundedColorComponent(c.B, "DreadstalkersCount (Blue component)", 0);
             }
         }
 
@@ -1461,33 +1238,37 @@ namespace ShadowMagic.Helpers
             {
                 var drNew = dtColorHelper.NewRow();
                 drNew["Percent"] = i < 10 ? "0.0" + i : "0." + i;
-                drNew["Unrounded"] = double.Parse(drNew["Percent"].ToString())*255;
-                drNew["Rounded"] = Math.Round(double.Parse(drNew["Percent"].ToString())*255, 0);
+                drNew["Unrounded"] = double.Parse(drNew["Percent"].ToString()) * MAX_COLOR_COMPONENT_VALUE;
+                drNew["Rounded"] = Math.Round(double.Parse(drNew["Percent"].ToString()) * MAX_COLOR_COMPONENT_VALUE, 0);
                 drNew["Value"] = i;
                 dtColorHelper.Rows.Add(drNew);
             }
             {
                 var drNew = dtColorHelper.NewRow();
                 drNew["Percent"] = "1.00";
-                drNew["Unrounded"] = "255";
-                drNew["Rounded"] = "255";
-                drNew["Value"] = 100;
+                drNew["Unrounded"] = MAX_COLOR_COMPONENT_VALUE.ToString();
+                drNew["Rounded"] = MAX_COLOR_COMPONENT_VALUE.ToString();
+                drNew["Value"] = PERCENTAGE_MULTIPLIER; // Value for 100%
                 dtColorHelper.Rows.Add(drNew);
             }
+            // Manually added from testing this color sometimes shows up for 30%
+            // This suggests rounding differences or specific game UI quirks.
             {
                 var drNew = dtColorHelper.NewRow();
                 drNew["Percent"] = "1.00";
-                drNew["Unrounded"] = "255";
-                drNew["Rounded"] = "77"; // Manually added from testing this color sometimes shows up 
-                drNew["Value"] = 30;
+                drNew["Unrounded"] = MAX_COLOR_COMPONENT_VALUE.ToString();
+                drNew["Rounded"] = "77"; 
+                drNew["Value"] = DT_COLOR_HELPER_30_VALUE;
                 dtColorHelper.Rows.Add(drNew);
             }
+            // Manually added from testing this color sometimes shows up for 70%
+            // This suggests rounding differences or specific game UI quirks.
             {
                 var drNew = dtColorHelper.NewRow();
                 drNew["Percent"] = "1.00";
-                drNew["Unrounded"] = "255";
-                drNew["Rounded"] = "179"; // Manually added from testing this color sometimes shows up 
-                drNew["Value"] = 70;
+                drNew["Unrounded"] = MAX_COLOR_COMPONENT_VALUE.ToString();
+                drNew["Rounded"] = "179";
+                drNew["Value"] = DT_COLOR_HELPER_70_VALUE;
                 dtColorHelper.Rows.Add(drNew);
             }
         }
@@ -1570,13 +1351,13 @@ namespace ShadowMagic.Helpers
             try
             {
                 Log.WriteDirectlyToLogFile($"Red = {c.R} Green = {c.G} Blue = {c.B}");
-                if (c.R == 255)
+                if (c.R == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                     return 0;
                 if (c.R == 0)
                 {
-                    var power = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                    var power2 = dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()?["Value"].ToString();
-                    return power != null && power2 != null ? int.Parse(power) * 100 + int.Parse(power2) : 0;
+                    var power = GetValueFromRoundedColorComponent(c.G, "SpellCooldownTimeRemaining c.G", 0);
+                    var power2 = GetValueFromRoundedColorComponent(c.B, "SpellCooldownTimeRemaining c.B", 0);
+                    return power * PERCENTAGE_MULTIPLIER + power2; // Using PERCENTAGE_MULTIPLIER constant
                 }
             }
             catch (Exception ex)
@@ -1594,33 +1375,33 @@ namespace ShadowMagic.Helpers
         /// <returns></returns>
         public static int Talent(int row)
         {
-            var c = WoW.GetBlockColor(3, 24);
+            var c = GetPlayerStatBlockColor(3); // Lua logical (2,23)
             if (c.B != 0) return 0;
             try
             {
                 switch (row)
                 {
                     case 1:
-                         c = GetBlockColor(1, 24);
-                        return int.Parse(dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()["Value"].ToString());
+                         c = GetPlayerStatBlockColor(1); // Lua logical (0,23)
+                        return GetValueFromRoundedColorComponent(c.R, "Talent Row 1 (Red component)", 0);
                     case 2:
-                        c = GetBlockColor(1, 24);
-                        return int.Parse(dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()["Value"].ToString());
+                        c = GetPlayerStatBlockColor(1); // Lua logical (0,23)
+                        return GetValueFromRoundedColorComponent(c.G, "Talent Row 2 (Green component)", 0);
                     case 3:
-                         c = GetBlockColor(1, 24);
-                        return int.Parse(dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()["Value"].ToString());
+                         c = GetPlayerStatBlockColor(1); // Lua logical (0,23)
+                        return GetValueFromRoundedColorComponent(c.B, "Talent Row 3 (Blue component)", 0);
                     case 4:
-                        c = GetBlockColor(2, 24);
-                        return int.Parse(dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()["Value"].ToString());
+                        c = GetPlayerStatBlockColor(2); // Lua logical (1,23)
+                        return GetValueFromRoundedColorComponent(c.R, "Talent Row 4 (Red component)", 0);
                     case 5:
-                        c = GetBlockColor(2, 24);
-                        return int.Parse(dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()["Value"].ToString());
+                        c = GetPlayerStatBlockColor(2); // Lua logical (1,23)
+                        return GetValueFromRoundedColorComponent(c.G, "Talent Row 5 (Green component)", 0);
                     case 6:
-                        c = GetBlockColor(2, 24);
-                        return int.Parse(dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()["Value"].ToString());
+                        c = GetPlayerStatBlockColor(2); // Lua logical (1,23)
+                        return GetValueFromRoundedColorComponent(c.B, "Talent Row 6 (Blue component)", 0);
                     case 7:
-                        c = GetBlockColor(3, 24);
-                        return int.Parse(dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()["Value"].ToString());
+                        c = GetPlayerStatBlockColor(3); // Lua logical (2,23)
+                        return GetValueFromRoundedColorComponent(c.R, "Talent Row 7 (Red component)", 0);
                 }
             }
             catch (Exception ex)
@@ -1640,7 +1421,7 @@ namespace ShadowMagic.Helpers
         {
             get
             {
-                var c = GetBlockColor(3, 24);
+                var c = GetPlayerStatBlockColor(3); // Lua logical (2,23)
 
                 try
                 {
@@ -1649,15 +1430,15 @@ namespace ShadowMagic.Helpers
                     string[] Race = new string[]
                     {"None","Human","Dwarf", "NightElf", "Gnome", "Dreanei", "Pandaren", "Orc", "Undead", "Tauren", "Troll", "BloodElf", "Goblin", "Worgen" ,"none"};
                     Log.WriteDirectlyToLogFile($"Green = {c.G}");
-                    var race = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                    if (int.Parse(race) > 13)
+                    var raceId = GetValueFromRoundedColorComponent(c.G, "PlayerRace (Green component)", 0);
+                    if (raceId > 13)
                         return "none";
-                    return race != null || int.Parse(race) > 13 ? Race[int.Parse(race)] : "none";
+                    return (raceId != 0 && raceId <= 13) ? Race[raceId] : "none";
 
                 }
                 catch (Exception ex)
                 {
-                    Log.Write($"Error in race  Green = {c.G}");
+                    Log.Write($"Error in race Green = {c.G}");
                     Log.Write(ex.Message, Color.Red);
                 }
                 return "none";
@@ -1672,18 +1453,17 @@ namespace ShadowMagic.Helpers
         {
             get
             {
-                var c = GetBlockColor(4, 24);
+                var c = GetPlayerStatBlockColor(4); // Lua logical (3,23)
                 try
                 {
                     if (c.B == 0) return "none"; 
                     string[] Spec = new string[] {"None","Blood", "Frost", "Unholy", "Havoc", "Vengeance", "Balance", "Feral", "Guardian", "Restoration", "Beast Mastery", "Marksmanship", "Survival", "Arcane", "Fire", "Frost", "Brewmaster", "Mistweaver", "Windwalker", "Holy", "Protection", "Retribution", "Discipline", "HolyPriest", "Shadow", "Assassination", "Outlaw", "Subtlety", "Elemental", "Enhancement", "RestorationShaman", "Affliction", "Arms", "Fury", "Protection","Demonology","Destruction","none"};
-                    var spec = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()?["Value"].ToString();
-                    return spec != null && int.Parse(spec) < 37 ? Spec[int.Parse(spec)] : "none";
+                    var specId = GetValueFromRoundedColorComponent(c.R, "PlayerSpec (Red component)", 0);
+                    return (specId != 0 && specId < 37) ? Spec[specId] : "none";
                 }
                 catch (Exception ex)
                 {
-                    Log.Write("Error in Spec  Green = " + c.R);
-
+                    Log.Write("Error in Spec Green = " + c.R);
                     Log.Write(ex.Message, Color.Red);
                 }
                 return "none";
@@ -1834,8 +1614,8 @@ namespace ShadowMagic.Helpers
                 }
             }
 
-            if (milliseconds < 50)
-                milliseconds = 50;
+            if (milliseconds < MIN_KEY_SEND_MILLISECONDS)
+                milliseconds = MIN_KEY_SEND_MILLISECONDS;
 
             milliseconds = milliseconds + random.Next(50);
 
@@ -1901,11 +1681,9 @@ namespace ShadowMagic.Helpers
 
             try
             {
-                if (c.R == 255)
+                if (c.R == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                     return 0;
-                // ReSharper disable once PossibleNullReferenceException
-                var stacks = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()["Value"].ToString();
-                return int.Parse(stacks);
+                return GetValueFromRoundedColorComponent(c.R, "PlayerBuffStacks (Red component)", 0);
             }
             catch (Exception ex)
             {
@@ -1940,11 +1718,9 @@ namespace ShadowMagic.Helpers
 
             try
             {
-                if (c.R == 255)
+                if (c.R == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                     return 0;
-                // ReSharper disable once PossibleNullReferenceException
-                var stacks = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()["Value"].ToString();
-                return int.Parse(stacks);
+                return GetValueFromRoundedColorComponent(c.R, "PetBuffStacks (Red component)", 0);
             }
             catch (Exception ex)
             {
@@ -1984,13 +1760,11 @@ namespace ShadowMagic.Helpers
 
             try
             {
-                if (c.R == 255)
+                if (c.R == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                     return 0;
-                // ReSharper disable once PossibleNullReferenceException
-                var power = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                var power2 = dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()?["Value"].ToString();
-                return power != null && power2 != null ? int.Parse(power) * 100 + int.Parse(power2) : 0;
-
+                var power = GetValueFromRoundedColorComponent(c.G, "TargetDebuffTimeRemaining c.G", 0);
+                var power2 = GetValueFromRoundedColorComponent(c.B, "TargetDebuffTimeRemaining c.B", 0);
+                return power * PERCENTAGE_MULTIPLIER + power2; // Using PERCENTAGE_MULTIPLIER constant
             }
             catch (Exception ex)
             {
@@ -2022,14 +1796,13 @@ namespace ShadowMagic.Helpers
         public static int PlayerBuffTimeRemaining(int auraNoInArrayOfAuras)
         {
             var c = GetBlockColor(auraNoInArrayOfAuras, 8);
-            if (c.R == 255 || c.B == 255)
+            if (c.R == MAX_COLOR_COMPONENT_VALUE || c.B == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                 return 0;
             try
             {
-                // ReSharper disable once PossibleNullReferenceException
-                var power = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                var power2 = dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()?["Value"].ToString();
-                return power != null && power2 != null ? int.Parse(power) * 100 + int.Parse(power2) : 0;
+                var power = GetValueFromRoundedColorComponent(c.G, "PlayerBuffTimeRemaining c.G", 0);
+                var power2 = GetValueFromRoundedColorComponent(c.B, "PlayerBuffTimeRemaining c.B", 0);
+                return power * PERCENTAGE_MULTIPLIER + power2; // Using PERCENTAGE_MULTIPLIER constant
             }
             catch (Exception ex)
             {
@@ -2064,12 +1837,11 @@ namespace ShadowMagic.Helpers
 
             try
             {
-                if (c.R == 255 || c.B == 255)
+                if (c.R == MAX_COLOR_COMPONENT_VALUE || c.B == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                     return 0;
-                var power = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()?["Value"].ToString();
-                var power2 = dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()?["Value"].ToString();
-                return power != null && power2 != null ? int.Parse(power) * 100 + int.Parse(power2) : 0;
-                // ReSharper disable once PossibleNullReferenceException
+                var power = GetValueFromRoundedColorComponent(c.G, "PetBuffTimeRemaining c.G", 0);
+                var power2 = GetValueFromRoundedColorComponent(c.B, "PetBuffTimeRemaining c.B", 0);
+                return power * PERCENTAGE_MULTIPLIER + power2; // Using PERCENTAGE_MULTIPLIER constant
             }
             catch (Exception ex)
             {
@@ -2106,13 +1878,9 @@ namespace ShadowMagic.Helpers
             try
             {
                 Log.WriteDirectlyToLogFile($"Red = {c.R}");
-                if (c.R == 255)
+                if (c.R == MAX_COLOR_COMPONENT_VALUE) // Using MAX_COLOR_COMPONENT_VALUE constant
                     return 0;
-
-                // ReSharper disable once PossibleNullReferenceException
-                var stacks = dtColorHelper.Select($"[Rounded] = '{c.R}'").FirstOrDefault()["Value"].ToString();
-
-                return int.Parse(stacks);
+                return GetValueFromRoundedColorComponent(c.R, "TargetDebuffStacks (Red component)", 0);
             }
             catch (Exception ex)
             {
@@ -2144,22 +1912,7 @@ namespace ShadowMagic.Helpers
         public static int PlayerSpellCharges(int spellNoInArrayOfSpells)
         {
             var c = GetBlockColor(spellNoInArrayOfSpells, 5);
-
-            try
-            {
-                // ReSharper disable once PossibleNullReferenceException
-                var stacks = dtColorHelper.Select($"[Rounded] = '{c.G}'").FirstOrDefault()["Value"].ToString();
-
-                return int.Parse(stacks);
-            }
-            catch (Exception ex)
-            {
-                Log.Write("Failed to find spell charge stacks for color G = " + c.G, Color.Red);
-                Log.Write("Error: " + ex.Message, Color.Red);
-            }
-
-            return 0;
-        }
+            return GetValueFromRoundedColorComponent(c.G, "PlayerSpellCharges (Green component)", 0);
 
         /// <summary>
         /// Players the spell charges.
@@ -2200,22 +1953,7 @@ namespace ShadowMagic.Helpers
         public static int ItemCount(int itemNoInArrayOfItems)
         {
             var c = GetBlockColor(itemNoInArrayOfItems, 9);
-
-            try
-            {
-                // ReSharper disable once PossibleNullReferenceException
-                var count = dtColorHelper.Select($"[Rounded] = '{c.B}'").FirstOrDefault()["Value"].ToString();
-
-                return int.Parse(count);
-            }
-            catch (Exception ex)
-            {
-                Log.Write("Failed to find Item count for color B = " + c.B, Color.Red);
-                Log.Write("Error: " + ex.Message, Color.Red);
-            }
-
-            return 0;
-        }
+            return GetValueFromRoundedColorComponent(c.B, "ItemCount (Blue component)", 0);
 
         /// <summary>
         /// Items the on cooldown.
@@ -2414,10 +2152,22 @@ namespace ShadowMagic.Helpers
             if (column <= 0 || row <= 0)
                 throw new Exception("x and or y must be >= 1");
 
+            // Caching logic (Improvement 5)
+            if ((DateTime.Now - _lastCacheClear) > CacheDuration)
+            {
+                _pixelCache.Clear();
+                _lastCacheClear = DateTime.Now;
+            }
+
+            if (_pixelCache.TryGetValue((column, row), out var cachedColor))
+            {
+                return cachedColor;
+            }
+
             column = column - 1;
             row = row - 1;
 
-            lock (thisLock) // We lock the bitmap "screenPixel" here to avoid it from being accessed by multiple threads at the same time and crashing
+            lock (thisLock)
             {
                 try
                 {
@@ -2433,7 +2183,7 @@ namespace ShadowMagic.Helpers
                         }
                     }
                     var temp = screenPixel.GetPixel(0, 0);
-
+                    _pixelCache[(column + 1, row + 1)] = temp; // Cache the result (using original 1-indexed column/row)
                     return temp;
                 }
                 catch (Exception ex)

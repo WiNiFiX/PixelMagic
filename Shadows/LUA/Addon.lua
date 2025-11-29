@@ -306,7 +306,7 @@ local function updateLegendary()
 	EquipmentManger.Legendary2 = 0
     for i =1, 18 do
 		if GetInventoryItemID("player", i) ~= nil then
-			local _, _, itemRarity, _, _, _,_, _, _, _, _ = GetItemInfo(GetInventoryItemID("player", i))
+			local _, _, itemRarity = C_Item.GetItemInfo(GetInventoryItemID("player", i))
 			if itemRarity == 5 then
 				if count == 0 then
 			        count = count +1
